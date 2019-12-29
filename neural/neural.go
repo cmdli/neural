@@ -12,11 +12,11 @@ func sigmoid(input float64) float64 {
 }
 func sigmoidDerivative(input float64) float64 {
 	a := sigmoid(input)
-	return a*(1.0-a)
+	return a * (1.0 - a)
 }
 
 func tanh(input float64) float64 {
-	return 2.0 * sigmoid(2.0 * input) - 1.0
+	return 2.0*sigmoid(2.0*input) - 1.0
 }
 func tanhDerivative(input float64) float64 {
 	a := tanh(input)
@@ -24,7 +24,7 @@ func tanhDerivative(input float64) float64 {
 }
 
 type Neuron struct {
-	weights []float64
+	weights  []float64
 	constant float64
 }
 
@@ -39,7 +39,7 @@ func (n Neuron) output(input []float64) float64 {
 func (n *Neuron) learn(input []float64, errorDerivative float64) []float64 {
 	total := n.constant
 	for i := range n.weights {
-		total += n.weights[i] * input[i];
+		total += n.weights[i] * input[i]
 	}
 	derivativeMagnitude := tanhDerivative(total)
 
@@ -96,7 +96,7 @@ func (n *NeuralNetwork) Output(input []float64) []float64 {
 }
 
 func (n *NeuralNetwork) Learn(input []float64, expected []float64) {
-	outputs := make([][]float64, len(n.layers) + 1)
+	outputs := make([][]float64, len(n.layers)+1)
 	outputs[0] = make([]float64, len(input))
 	for i := range n.layers {
 		outputs[i+1] = make([]float64, n.layers[i].size())
@@ -110,7 +110,7 @@ func (n *NeuralNetwork) Learn(input []float64, expected []float64) {
 	for i := range expected {
 		backpropagationError[i] = (lastOutput[i] - expected[i])
 	}
-	for i := len(n.layers)-1; i >= 0; i-- {
+	for i := len(n.layers) - 1; i >= 0; i-- {
 		backpropagationError = n.layers[i].learn(outputs[i], backpropagationError)
 	}
 }
@@ -130,8 +130,8 @@ func MakeNetwork(sizes []int, inputSize int) NeuralNetwork {
 				weights[k] = rand.Float64()
 			}
 			neurons[j] = Neuron{
-				weights: weights,
-				constant: rand.Float64()*2.0-1.0,
+				weights:  weights,
+				constant: rand.Float64()*2.0 - 1.0,
 			}
 		}
 		layers[i] = Layer{
