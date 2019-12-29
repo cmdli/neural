@@ -23,6 +23,36 @@ func tanhDerivative(input float64) float64 {
 	return 1.0 - a*a
 }
 
+type Input []float64
+type Answer []float64
+
+type NetworkData struct {
+	Inputs  []Input
+	Answers []Answer
+}
+
+func MakeNetworkData() NetworkData {
+	return NetworkData{
+		Inputs:  make([]Input, 0),
+		Answers: make([]Answer, 0),
+	}
+}
+
+func (data *NetworkData) AddData(input Input, answer Answer) {
+	data.Inputs = append(data.Inputs, input)
+	data.Answers = append(data.Answers, answer)
+}
+
+func (data *NetworkData) Split(n int) (NetworkData, NetworkData) {
+	inputs1 := data.Inputs[:n]
+	inputs2 := data.Inputs[n:]
+	answers1 := data.Answers[:n]
+	answers2 := data.Answers[n:]
+	data1 := NetworkData{Inputs: inputs1, Answers: answers1}
+	data2 := NetworkData{Inputs: inputs2, Answers: answers2}
+	return data1, data2
+}
+
 type Neuron struct {
 	weights  []float64
 	constant float64
@@ -95,7 +125,7 @@ func (n *NeuralNetwork) Output(input []float64) []float64 {
 	return values
 }
 
-func (n *NeuralNetwork) Learn(input []float64, expected []float64) {
+func (n *NeuralNetwork) Learn(input Input, expected Answer) {
 	outputs := make([][]float64, len(n.layers)+1)
 	outputs[0] = make([]float64, len(input))
 	for i := range n.layers {

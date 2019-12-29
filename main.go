@@ -61,7 +61,7 @@ func intToFloats(data int) []float64 {
 	return input
 }
 
-func testNetwork(network neural.NeuralNetwork, inputs [][]float64, answers [][]float64) (float64, int) {
+func testNetwork(network neural.NeuralNetwork, inputs []neural.Input, answers []neural.Answer) (float64, int) {
 	wrong := 0
 	error := 0.0
 	for i := 0; i < len(inputs); i++ {
@@ -107,30 +107,25 @@ func redditTest() {
 		i += 1
 	}
 	fmt.Println(" - Found words")
-	inputs := make([][]float64, 0)
-	outputs := make([][]float64, 0)
+	data := neural.MakeNetworkData()
 	for i, word := range words {
 		if len(word) <= 10 {
-			inputs = append(inputs, stringToFloats(word))
-			outputs = append(outputs, intToFloats(i))
+			data.AddData(stringToFloats(word), intToFloats(i))
 		}
 	}
 	fmt.Println(" - Converted to floats")
-	trainingDataLimit := len(inputs) * 9 / 10
-	trainingInputs := inputs[:trainingDataLimit]
-	trainingAnswers := outputs[:trainingDataLimit]
-	testInputs := inputs[trainingDataLimit:]
-	testAnswers := outputs[trainingDataLimit:]
+	trainingDataLimit := len(data.Inputs) * 9 / 10
+	trainingData, testData := data.Split(trainingDataLimit)
 	network := neural.MakeNetwork([]int{10, 10, 10, 32}, 100)
-	error, wrong := testNetwork(network, testInputs, testAnswers)
-	fmt.Println("Before:", error, "Wrong:", wrong, "Total:", 32*len(testInputs))
+	error, wrong := testNetwork(network, testData.Inputs, testData.Answers)
+	fmt.Println("Before:", error, "Wrong:", wrong, "Total:", 32*len(testData.Inputs))
 	for iteration := 0; iteration < 5; iteration++ {
-		for i := 0; i < len(trainingInputs); i++ {
-			network.Learn(trainingInputs[i], trainingAnswers[i])
+		for i := 0; i < len(trainingData.Inputs); i++ {
+			network.Learn(trainingData.Inputs[i], trainingData.Answers[i])
 		}
 	}
-	error, wrong = testNetwork(network, testInputs, testAnswers)
-	fmt.Println("Before:", error, "Wrong:", wrong, "Total:", 32*len(testInputs))
+	error, wrong = testNetwork(network, testData.Inputs, testData.Answers)
+	fmt.Println("Before:", error, "Wrong:", wrong, "Total:", 32*len(testData.Inputs))
 }
 
 func main() {
