@@ -3,9 +3,16 @@ package neural
 import (
 	"math"
 	"math/rand"
+	"sync"
 )
 
+type Network interface {
+	Output([]float64) []float64
+	Learn(Input, Answer)
+}
+
 const LEARNING_FACTOR = 0.2
+const NUM_THREADS = 16
 
 func sigmoid(input float64) float64 {
 	return 1.0 / (1.0 + math.Pow(math.E, -input))
@@ -20,7 +27,7 @@ func tanh(input float64) float64 {
 }
 func tanhDerivative(input float64) float64 {
 	a := tanh(input)
-	return 1.0 - a*a
+	return math.Max(1.0-a*a, 0.0001)
 }
 
 type Input []float64
@@ -145,7 +152,7 @@ func (n *NeuralNetwork) Learn(input Input, expected Answer) {
 	}
 }
 
-func MakeNetwork(sizes []int, inputSize int) NeuralNetwork {
+func MakeNetwork(sizes []int, inputSize int) *NeuralNetwork {
 	layers := make([]Layer, len(sizes))
 	for i := range layers {
 		neurons := make([]Neuron, sizes[i])
@@ -168,7 +175,124 @@ func MakeNetwork(sizes []int, inputSize int) NeuralNetwork {
 			neurons: neurons,
 		}
 	}
-	return NeuralNetwork{
+	return &NeuralNetwork{
 		layers: layers,
 	}
+}
+
+type FastNeuralNetwork struct {
+	sizes   []int
+	weights [][][]float64
+	biases  [][]float64
+}
+
+func NewFastNeuralNetwork(dimensions []int, inputSize int) *FastNeuralNetwork {
+	sizes := make([]int, len(dimensions))
+	copy(sizes, dimensions)
+	weights := make([][][]float64, len(sizes))
+	biases := make([][]float64, len(sizes))
+	for layer := 0; layer < len(weights); layer++ {
+		weights[layer] = make([][]float64, sizes[layer])
+		biases[layer] = make([]float64, sizes[layer])
+		for neuron := 0; neuron < len(weights[layer]); neuron++ {
+			previousLayerSize := inputSize
+			if layer > 0 {
+				previousLayerSize = sizes[layer-1]
+			}
+			weights[layer][neuron] = make([]float64, previousLayerSize)
+			for k := 0; k < len(weights[layer][neuron]); k++ {
+				weights[layer][neuron][k] = rand.Float64()
+			}
+			biases[layer][neuron] = rand.Float64()
+		}
+	}
+	return &FastNeuralNetwork{sizes: sizes, weights: weights, biases: biases}
+}
+
+type pair struct {
+	layer, neuron int
+}
+
+func calculateNeuron(outputs [][]float64, network *FastNeuralNetwork, instructions chan pair, wg *sync.WaitGroup, finished *sync.WaitGroup) {
+	for {
+		i, ok := <-instructions
+		if !ok {
+			break
+		}
+		inputs := outputs[i.layer]
+		weights := network.weights[i.layer][i.neuron]
+		sum := network.biases[i.layer][i.neuron]
+		for k := range weights {
+			sum += weights[k] * inputs[k]
+		}
+		outputs[1+i.layer][i.neuron] = tanh(sum)
+		wg.Done()
+	}
+	finished.Done()
+}
+
+func (n *FastNeuralNetwork) Output(input []float64) []float64 {
+	// var wg sync.WaitGroup
+	// var finished sync.WaitGroup
+	// instructions := make(chan pair, NUM_THREADS+1)
+
+	// outputs := make([][]float64, len(n.sizes)+1)
+	// outputs[0] = make([]float64, len(input))
+	// copy(outputs[0], input)
+
+	// finished.Add(NUM_THREADS)
+	// for i := 0; i < NUM_THREADS; i++ {
+	// 	go calculateNeuron(outputs, n, instructions, &wg, &finished)
+	// }
+
+	// for i := range outputs {
+	// 	if i == 0 {
+	// 		continue
+	// 	}
+	// 	layer := i - 1
+	// 	outputs[i] = make([]float64, n.sizes[layer])
+	// 	wg.Add(len(outputs[i]))
+	// 	for neuron := 0; neuron < len(outputs[i]); neuron++ {
+	// 		instructions <- pair{layer: layer, neuron: neuron}
+	// 	}
+	// 	wg.Wait()
+	// }
+	// close(instructions)
+	// finished.Wait()
+	// return outputs[len(outputs)-1]
+
+	outputs := make([][]float64, len(n.sizes))
+	for layer := range outputs {
+		// next := make([]float64, n.sizes[layer])
+		// layerWeights := n.weights[layer]
+		// for k := 0; k < len(input); k++ {
+		// 	temp := input[k]
+		// 	for neuron := range next {
+		// 		next[neuron] += layerWeights[neuron][k] * temp
+		// 	}
+		// }
+		// for i := 0; i < len(next); i++ {
+		// 	next[i] = tanh(next[i])
+		// }
+		// outputs[layer] = next
+		// input = next
+
+		outputs[layer] = make([]float64, n.sizes[layer])
+		layerWeights := n.weights[layer]
+		layerBiases := n.biases[layer]
+		for neuron := range outputs[layer] {
+			weights := layerWeights[neuron]
+			sum := layerBiases[neuron]
+			for k := 0; k < len(weights); k++ {
+				sum += weights[k] * input[k]
+			}
+			outputs[layer][neuron] = tanh(sum)
+		}
+		input = outputs[layer]
+	}
+	return outputs[len(outputs)-1]
+}
+
+func (n *FastNeuralNetwork) Learn(input Input, expected Answer) {
+
 }
