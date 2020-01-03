@@ -9,6 +9,7 @@ import (
 type Network interface {
 	Output([]float64) []float64
 	Learn(Input, Answer)
+	LearnData(*NetworkData, int)
 }
 
 const LEARNING_FACTOR = 0.2
@@ -27,7 +28,7 @@ func tanh(input float64) float64 {
 }
 func tanhDerivative(input float64) float64 {
 	a := tanh(input)
-	return math.Max(1.0-a*a, 0.0001)
+	return math.Max(1.0-a*a, 0.001)
 }
 
 type Input []float64
@@ -50,14 +51,14 @@ func (data *NetworkData) AddData(input Input, answer Answer) {
 	data.Answers = append(data.Answers, answer)
 }
 
-func (data *NetworkData) Split(n int) (NetworkData, NetworkData) {
+func (data *NetworkData) Split(n int) (*NetworkData, *NetworkData) {
 	inputs1 := data.Inputs[:n]
 	inputs2 := data.Inputs[n:]
 	answers1 := data.Answers[:n]
 	answers2 := data.Answers[n:]
 	data1 := NetworkData{Inputs: inputs1, Answers: answers1}
 	data2 := NetworkData{Inputs: inputs2, Answers: answers2}
-	return data1, data2
+	return &data1, &data2
 }
 
 type Neuron struct {
@@ -149,6 +150,14 @@ func (n *NeuralNetwork) Learn(input Input, expected Answer) {
 	}
 	for i := len(n.layers) - 1; i >= 0; i-- {
 		backpropagationError = n.layers[i].learn(outputs[i], backpropagationError)
+	}
+}
+
+func (n *NeuralNetwork) LearnData(data *NetworkData, iterations int) {
+	for iteration := 0; iteration < iterations; iteration++ {
+		for i := 0; i < len(data.Inputs); i++ {
+			n.Learn(data.Inputs[i], data.Answers[i])
+		}
 	}
 }
 
@@ -294,5 +303,9 @@ func (n *FastNeuralNetwork) Output(input []float64) []float64 {
 }
 
 func (n *FastNeuralNetwork) Learn(input Input, expected Answer) {
+
+}
+
+func (n *FastNeuralNetwork) LearnData(data NetworkData, iterations int) {
 
 }
